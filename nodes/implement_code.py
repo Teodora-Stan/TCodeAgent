@@ -1,15 +1,15 @@
 """
-NOD: implement_code (Faza 3)
+NODE: implement_code (Phase 3)
 
-Scrie sau modifică `solution.py`. Nodul are trei moduri de lucru, deduse din stare:
+Writes or modifies `solution.py`. The node has three working modes, inferred from the state:
 
-  NEW     - încă nu există cod                 -> implementare de la zero
-  FIX     - ultima rulare a avut teste picate  -> repară pe baza erorilor pytest
-  REFINE  - testele au trecut, dar criticul
-            de cod a cerut îmbunătățiri        -> refactorizare fără a strica testele
+  NEW     - there is no code yet               -> implementation from scratch
+  FIX     - the last run had failing tests     -> fix based on the pytest errors
+  REFINE  - the tests passed, but the code
+            critic asked for improvements      -> refactor without breaking the tests
 
-În modurile FIX și REFINE îi dăm LLM-ului TOT codul curent (pentru un singur
-modul e mic, iar bug-urile sunt în corpul funcțiilor, nu în semnături).
+In FIX and REFINE modes we give the LLM ALL of the current code (for a single
+module it's small, and the bugs are in the function bodies, not in the signatures).
 """
 
 from enum import StrEnum
@@ -32,7 +32,7 @@ Răspunde DOAR cu fișierul complet `{SOLUTION_FILE}`, într-un singur bloc ```p
 
 
 class Mode(StrEnum):
-    """Ce fel de implementare facem în iterația curentă."""
+    """What kind of implementation we do in the current iteration."""
 
     NEW = "implementare nouă"
     FIX = "reparare teste picate"
@@ -40,7 +40,7 @@ class Mode(StrEnum):
 
 
 def node_implement_code(state: AgentState) -> dict:
-    """Generează o nouă versiune a codului."""
+    """Generates a new version of the code."""
     mode = detect_mode(state)
     code = ask_code(SYSTEM_PROMPT, build_prompt(state, mode))
     iteration = state["code_iterations"] + 1
@@ -53,7 +53,7 @@ def node_implement_code(state: AgentState) -> dict:
 
 
 def detect_mode(state: AgentState) -> Mode:
-    """Deduce modul de lucru din stare (vezi docstring-ul modulului)."""
+    """Infers the working mode from the state (see the module docstring)."""
     if not state["code"]:
         return Mode.NEW
     if not state["execution_passed"]:
@@ -62,7 +62,7 @@ def detect_mode(state: AgentState) -> Mode:
 
 
 def build_prompt(state: AgentState, mode: Mode) -> str:
-    """Prompt-ul de bază (task + teste) plus secțiunea specifică modului."""
+    """The base prompt (task + tests) plus the mode-specific section."""
     return join_sections(
         task_context(state),
         section(f"Testele ({TEST_FILE})", code_block(state["test_code"])),
@@ -71,7 +71,7 @@ def build_prompt(state: AgentState, mode: Mode) -> str:
 
 
 def mode_section(state: AgentState, mode: Mode) -> str | None:
-    """Informațiile suplimentare de care are nevoie fiecare mod."""
+    """The extra information each mode needs."""
     if mode == Mode.NEW:
         return None
 
@@ -82,7 +82,7 @@ def mode_section(state: AgentState, mode: Mode) -> str | None:
             current_code,
             section("Teste picate", bullet_list(state["failing_tests"])),
             section("Output pytest", code_block(state["execution_output"], language="text")),
-            # Diagnosticul (dacă a rulat) explică DE CE a picat fiecare test.
+            # The diagnosis (if it ran) explains WHY each test failed.
             section("Diagnosticul eșecurilor", state["failure_diagnosis"])
             if state["failure_diagnosis"]
             else None,

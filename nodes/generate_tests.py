@@ -1,13 +1,13 @@
 """
-NOD: generate_tests (Faza 2)
+NODE: generate_tests (Phase 2)
 
-Generează suita de teste pytest. Se poate ajunge aici din trei locuri:
-  1. prima dată, după confirmarea task-ului       -> suită nouă
-  2. după ce utilizatorul a dat corner cases      -> suita existentă + cazurile lui
-  3. după ce criticul a respins testele           -> suita existentă + ce i-a lipsit criticului
+Generates the pytest suite. We can get here from three places:
+  1. the first time, after the task is confirmed  -> new suite
+  2. after the user gave corner cases             -> existing suite + the user's cases
+  3. after the critic rejected the tests          -> existing suite + what the critic was missing
 
-În cazurile 2 și 3 îi dăm LLM-ului suita curentă și îi cerem s-o COMPLETEZE,
-nu s-o rescrie de la zero (ca să nu pierdem teste bune).
+In cases 2 and 3 we give the LLM the current suite and ask it to EXTEND it,
+not rewrite it from scratch (so we don't lose good tests).
 """
 
 from llm import ask_code
@@ -30,7 +30,7 @@ Răspunde DOAR cu fișierul complet de teste, într-un singur bloc ```python```.
 
 
 def node_generate_tests(state: AgentState) -> dict:
-    """Generează sau completează suita de teste."""
+    """Generates or extends the test suite."""
     test_code = ask_code(SYSTEM_PROMPT, build_prompt(state))
     generation = state["test_generations"] + 1
 
@@ -44,7 +44,7 @@ def node_generate_tests(state: AgentState) -> dict:
 
 
 def build_prompt(state: AgentState) -> str:
-    """Prompt-ul = contextul task-ului + (opțional) suita existentă, corner cases, critica."""
+    """The prompt = the task context + (optionally) the existing suite, corner cases, the critique."""
     return join_sections(
         task_context(state),
         section("Suita de teste existentă (de completat)", code_block(state["test_code"]))

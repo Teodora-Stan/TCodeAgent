@@ -1,6 +1,6 @@
 """
-Nodurile grafului, câte unul pe fișier. Re-exportate aici ca graph.py să le
-poată importa dintr-un singur loc: `from nodes import node_clarify_task, ...`.
+The graph's nodes, one per file. Re-exported here so graph.py can import
+them from a single place: `from nodes import node_clarify_task, ...`.
 """
 
 from nodes.ask_corner_cases import node_ask_corner_cases

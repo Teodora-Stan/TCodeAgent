@@ -1,4 +1,4 @@
-"""Teste pentru utils/sandbox.py: rulează pytest real pe cod mic, în director temporar."""
+"""Tests for utils/sandbox.py: runs real pytest on small code, in a temporary directory."""
 
 from utils.sandbox import COLLECTION_ERROR, TIMEOUT_ERROR, run_tests
 
@@ -30,7 +30,7 @@ def test_syntax_error_is_a_collection_error_not_a_test():
     result = run_tests("def add(:\n", TESTS, timeout=30)
     assert not result.passed
     assert result.failed_tests == [COLLECTION_ERROR]
-    assert result.total == 0  # testul "fals" al pytest nu e numărat
+    assert result.total == 0  # pytest's "fake" test is not counted
 
 
 def test_infinite_loop_hits_timeout():

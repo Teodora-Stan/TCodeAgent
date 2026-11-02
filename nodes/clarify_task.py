@@ -1,10 +1,10 @@
 """
-NOD: clarify_task (Faza 1)
+NODE: clarify_task (Phase 1)
 
-Agentul reformulează cerința, propune interfața (semnăturile funcțiilor) și își
-declară presupunerile. Rezultatul e arătat utilizatorului în nodul următor
-(user_confirm). Dacă utilizatorul nu e de acord, ajungem iar aici, iar feedback-ul
-lui apare în prompt prin `task_context` (câmpul `clarification_history`).
+The agent rephrases the request, proposes the interface (the function signatures)
+and states its assumptions. The result is shown to the user in the next node
+(user_confirm). If the user disagrees, we come back here, and their feedback
+appears in the prompt through `task_context` (the `clarification_history` field).
 """
 
 from llm import ask_structured
@@ -23,7 +23,7 @@ Răspunde în limba română."""
 
 
 def node_clarify_task(state: AgentState) -> dict:
-    """Cere LLM-ului să explice cum a înțeles task-ul."""
+    """Asks the LLM to explain how it understood the task."""
     understanding = ask_structured(TaskUnderstanding, SYSTEM_PROMPT, build_prompt(state))
 
     return {
@@ -33,10 +33,10 @@ def node_clarify_task(state: AgentState) -> dict:
 
 
 def build_prompt(state: AgentState) -> str:
-    """Cerința + precizările utilizatorului + (dacă există) propunerea anterioară respinsă.
+    """The request + the user's clarifications + (if any) the previous, rejected proposal.
 
-    Propunerea anterioară e necesară pentru că utilizatorul se referă adesea la ea
-    ("schimbă a doua presupunere"), dar NU e prezentată ca înțelegere confirmată.
+    The previous proposal is needed because the user often refers to it
+    ("change the second assumption"), but it is NOT presented as a confirmed understanding.
     """
     return join_sections(
         task_context(state, include_clarification=False),
@@ -47,7 +47,7 @@ def build_prompt(state: AgentState) -> str:
 
 
 def format_understanding(understanding: TaskUnderstanding) -> str:
-    """Transformă obiectul structurat într-un text ușor de citit (pentru om ȘI pentru LLM)."""
+    """Turns the structured object into easy-to-read text (for the human AND for the LLM)."""
     return join_sections(
         section("Rezumat", understanding.summary),
         section("Interfață propusă", bullet_list(understanding.interface)),

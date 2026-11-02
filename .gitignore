@@ -1,7 +1,7 @@
-# Secrete: cheia Groq NU ajunge niciodată în repo (folosește .env.example ca model)
+# Secrets: the Groq key NEVER goes into the repo (use .env.example as a template)
 .env
 
-# Stare locală a agentului
+# The agent's local state
 checkpoints.sqlite
 .last_thread
 output/
@@ -13,7 +13,7 @@ __pycache__/
 .venv/
 venv/
 
-# Editor / unelte locale
+# Editor / local tools
 .claude/
 .vscode/
 .idea/

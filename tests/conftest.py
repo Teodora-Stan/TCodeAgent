@@ -1,8 +1,8 @@
 """
-Fixture-uri comune pentru teste.
+Shared fixtures for the tests.
 
-Niciun test nu face apeluri LLM reale: unde e nevoie de LLM, funcțiile
-`ask_*` sunt înlocuite (monkeypatch) cu răspunsuri scriptate.
+No test makes real LLM calls: where an LLM is needed, the `ask_*`
+functions are replaced (monkeypatch) with scripted responses.
 """
 
 import dataclasses
@@ -15,7 +15,7 @@ from state import AgentState, initial_state
 
 @pytest.fixture
 def make_state():
-    """Fabrică de stări: `make_state(execution_passed=True)` = starea inițială + modificările date."""
+    """State factory: `make_state(execution_passed=True)` = the initial state + the given changes."""
 
     def _make(**overrides) -> AgentState:
         return {**initial_state("task de test"), **overrides}
@@ -25,7 +25,7 @@ def make_state():
 
 @pytest.fixture(autouse=True)
 def isolated_output(tmp_path, monkeypatch):
-    """Raportul final se scrie într-un director temporar, nu în output/ al proiectului."""
+    """The final report is written to a temporary directory, not to the project's output/."""
     settings = dataclasses.replace(nodes.final_report.SETTINGS, output_dir=tmp_path / "output")
     monkeypatch.setattr(nodes.final_report, "SETTINGS", settings)
     return settings.output_dir

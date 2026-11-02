@@ -1,17 +1,17 @@
 """
-Interacțiunea cu utilizatorul (Human-in-the-Loop) prin `interrupt()` din LangGraph.
+Interaction with the user (Human-in-the-Loop) through LangGraph's `interrupt()`.
 
-Cum funcționează `interrupt()`:
-  1. Un nod apelează `interrupt(payload)` -> graful se OPREȘTE și salvează starea
-     în checkpointer. `payload` ajunge la cel care rulează graful (main.py).
-  2. main.py afișează întrebarea, citește răspunsul și reia graful cu
-     `Command(resume=raspuns)`.
-  3. Nodul este RE-EXECUTAT DE LA ÎNCEPUT, iar de data asta `interrupt()`
-     întoarce direct răspunsul.
+How `interrupt()` works:
+  1. A node calls `interrupt(payload)` -> the graph STOPS and saves the state
+     in the checkpointer. `payload` reaches whoever runs the graph (main.py).
+  2. main.py shows the question, reads the answer and resumes the graph with
+     `Command(resume=answer)`.
+  3. The node is RE-EXECUTED FROM THE START, and this time `interrupt()`
+     returns the answer directly.
 
-Consecință importantă: un nod care cere input NU trebuie să facă altceva
-costisitor (ex: apeluri LLM) ÎNAINTE de `interrupt()`, pentru că s-ar repeta.
-De aceea nodurile "user_*" doar întreabă și salvează răspunsul.
+Important consequence: a node that asks for input must NOT do anything else
+expensive (e.g. LLM calls) BEFORE `interrupt()`, because it would be repeated.
+That's why the "user_*" nodes only ask and save the answer.
 """
 
 from typing import TypedDict
@@ -20,16 +20,16 @@ from langgraph.types import interrupt
 
 
 class UserPrompt(TypedDict):
-    """Ce trimite graful către interfață când are nevoie de input."""
+    """What the graph sends to the interface when it needs input."""
 
-    title: str        # titlul scurt al pasului (ex: "Confirmare task")
-    message: str      # contextul afișat (ex: cum a înțeles agentul task-ul)
-    question: str     # întrebarea propriu-zisă
-    multiline: bool   # True = utilizatorul poate lipi mai multe linii (ex: cod)
+    title: str        # short title of the step (e.g. "Confirmare task")
+    message: str      # the context shown (e.g. how the agent understood the task)
+    question: str     # the actual question
+    multiline: bool   # True = the user can paste several lines (e.g. code)
 
 
 def ask_user(title: str, message: str, question: str, multiline: bool = False) -> str:
-    """Oprește graful, așteaptă răspunsul utilizatorului și îl întoarce (ca text)."""
+    """Stops the graph, waits for the user's answer and returns it (as text)."""
     prompt: UserPrompt = {
         "title": title,
         "message": message,

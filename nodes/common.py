@@ -1,5 +1,5 @@
 """
-Bucăți refolosite de mai multe noduri (contextul task-ului și jurnalizarea).
+Pieces reused by several nodes (the task context and logging).
 """
 
 from state import AgentState
@@ -7,13 +7,13 @@ from utils.text import bullet_list, join_sections, section
 
 
 def task_context(state: AgentState, include_clarification: bool = True) -> str:
-    """Contextul comun pentru aproape toate prompt-urile: cerința + ce s-a înțeles.
+    """The context shared by almost all prompts: the request + what was understood.
 
-    Îl construim într-o singură funcție ca toate nodurile să vadă EXACT aceleași
-    informații despre task (altfel testele și codul ar putea "înțelege" diferit).
+    We build it in a single function so that all nodes see EXACTLY the same
+    information about the task (otherwise the tests and the code might "understand" it differently).
 
-    `include_clarification=False` e folosit de clarify_task, care încă nu are o
-    înțelegere confirmată a task-ului.
+    `include_clarification=False` is used by clarify_task, which doesn't have a
+    confirmed understanding of the task yet.
     """
     feedback = state["clarification_history"]
     return join_sections(
@@ -26,10 +26,10 @@ def task_context(state: AgentState, include_clarification: bool = True) -> str:
 
 
 def log_step(message: str) -> list[str]:
-    """Afișează progresul în consolă și întoarce intrarea pentru câmpul `history`.
+    """Prints progress to the console and returns the entry for the `history` field.
 
-    Utilizare într-un nod:  `return {..., "history": log_step("Am generat testele")}`
-    (reducer-ul `operator.add` din AgentState o adaugă la jurnal).
+    Usage in a node:  `return {..., "history": log_step("Am generat testele")}`
+    (the `operator.add` reducer in AgentState appends it to the log).
     """
     print(f"  ▸ {message}")
     return [message]

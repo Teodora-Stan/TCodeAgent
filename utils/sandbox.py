@@ -1,13 +1,13 @@
 """
-Rularea testelor pe codul generat, într-un director temporar izolat.
+Running the tests against the generated code, in an isolated temporary directory.
 
-ATENȚIE: "sandbox" aici înseamnă doar un director temporar + timeout. Codul
-generat de LLM rulează cu drepturile utilizatorului tău. Pentru izolare reală
-ar trebui un container (Docker) sau un sandbox dedicat.
+WARNING: "sandbox" here only means a temporary directory + a timeout. The
+LLM-generated code runs with your user's permissions. Real isolation would
+need a container (Docker) or a dedicated sandbox.
 
-Convenția de fișiere (o cunosc și prompt-urile):
-    solution.py       <- codul implementat
-    test_solution.py  <- testele, care fac `from solution import ...`
+File convention (the prompts know it too):
+    solution.py       <- the implemented code
+    test_solution.py  <- the tests, which do `from solution import ...`
 """
 
 import subprocess
@@ -23,29 +23,29 @@ SOLUTION_FILE = "solution.py"
 TEST_FILE = "test_solution.py"
 JUNIT_REPORT = "report.xml"
 
-# "Nume de test" folosit când pytest nici nu poate importa fișierele
-# (ex: eroare de sintaxă în solution.py), deci nu rulează niciun test real.
+# "Test name" used when pytest can't even import the files
+# (e.g. a syntax error in solution.py), so no real test runs.
 COLLECTION_ERROR = "<eroare la import/colectare>"
-# "Nume de test" folosit când rularea a depășit timeout-ul.
+# "Test name" used when the run exceeded the timeout.
 TIMEOUT_ERROR = "<timeout>"
 
-# Eșecuri care țin sigur de cod (nu de un test anume), deci nu are sens
-# să întrebăm "e de vină testul?".
+# Failures that are always the code's fault (not a specific test's), so it
+# makes no sense to ask "is the test at fault?".
 CODE_LEVEL_ERRORS = {COLLECTION_ERROR, TIMEOUT_ERROR}
 
 
 @dataclass
 class TestRunResult:
-    """Rezultatul unei rulări pytest."""
+    """The result of a pytest run."""
 
-    passed: bool                                       # TOATE testele au trecut?
-    failed_tests: list[str] = field(default_factory=list)  # numele testelor picate
-    total: int = 0                                     # câte teste au fost rulate
-    output: str = ""                                   # output-ul pytest (trunchiat)
+    passed: bool                                       # did ALL tests pass?
+    failed_tests: list[str] = field(default_factory=list)  # names of the failing tests
+    total: int = 0                                     # how many tests ran
+    output: str = ""                                   # the pytest output (truncated)
 
 
 def run_tests(code: str, test_code: str, timeout: int) -> TestRunResult:
-    """Scrie codul + testele într-un director temporar și rulează pytest."""
+    """Writes the code + tests into a temporary directory and runs pytest."""
     with tempfile.TemporaryDirectory(prefix="agent_sandbox_") as tmp:
         workdir = Path(tmp)
         _write_files(workdir, code, test_code)
@@ -62,32 +62,32 @@ def run_tests(code: str, test_code: str, timeout: int) -> TestRunResult:
         total, failed = _parse_junit_report(workdir / JUNIT_REPORT)
         output = truncate(process.stdout + process.stderr)
 
-    # Cod de ieșire 0 = toate testele au trecut. Orice altceva (teste picate,
-    # eroare la import, niciun test găsit) e considerat eșec.
+    # Exit code 0 = all tests passed. Anything else (failing tests,
+    # import error, no tests found) counts as a failure.
     passed = process.returncode == 0 and total > 0
     if not passed and not failed:
-        # Ex: pytest s-a oprit înainte să scrie raportul.
+        # E.g. pytest stopped before writing the report.
         failed = [COLLECTION_ERROR]
     return TestRunResult(passed=passed, failed_tests=failed, total=total, output=output)
 
 
 def _write_files(workdir: Path, code: str, test_code: str) -> None:
-    """Creează solution.py și test_solution.py în directorul de lucru."""
+    """Creates solution.py and test_solution.py in the working directory."""
     (workdir / SOLUTION_FILE).write_text(code, encoding="utf-8")
     (workdir / TEST_FILE).write_text(test_code, encoding="utf-8")
 
 
 def _run_pytest(workdir: Path, timeout: int) -> subprocess.CompletedProcess:
-    """Rulează pytest ca subproces (cu același interpreter Python ca agentul).
+    """Runs pytest as a subprocess (with the same Python interpreter as the agent).
 
-    `--junitxml` produce un raport XML din care extragem exact testele picate,
-    mai sigur decât să parsăm textul afișat.
+    `--junitxml` produces an XML report from which we extract exactly which tests
+    failed, more reliably than parsing the printed text.
     """
     command = [
         sys.executable, "-m", "pytest", TEST_FILE,
-        "-q",                       # output compact
-        "--tb=short",               # traceback-uri scurte (încap în prompt)
-        "-p", "no:cacheprovider",   # fără .pytest_cache în directorul temporar
+        "-q",                       # compact output
+        "--tb=short",               # short tracebacks (they fit in the prompt)
+        "-p", "no:cacheprovider",   # no .pytest_cache in the temporary directory
         f"--junitxml={JUNIT_REPORT}",
     ]
     return subprocess.run(
@@ -96,22 +96,22 @@ def _run_pytest(workdir: Path, timeout: int) -> subprocess.CompletedProcess:
 
 
 def _parse_junit_report(report_path: Path) -> tuple[int, list[str]]:
-    """Citește raportul JUnit: (număr total de teste, lista testelor picate)."""
+    """Reads the JUnit report: (total number of tests, list of failing tests)."""
     if not report_path.exists():
         return 0, []
 
     testcases = ET.parse(report_path).getroot().iter("testcase")
     total, failed = 0, []
     for case in testcases:
-        # La o eroare de import, pytest raportează un "test" fals numit după
-        # fișier (ex: "test_solution"). Nu e un test real, deci nu-l numărăm.
+        # On an import error, pytest reports a fake "test" named after the
+        # file (e.g. "test_solution"). It's not a real test, so we don't count it.
         error = case.find("error")
         if error is not None and error.get("message") == "collection failure":
             failed.append(COLLECTION_ERROR)
             continue
 
         total += 1
-        # Un test e picat dacă are un copil <failure> (assert) sau <error> (excepție).
+        # A test failed if it has a <failure> child (assert) or an <error> child (exception).
         if case.find("failure") is not None or case.find("error") is not None:
             failed.append(case.get("name", "?"))
     return total, failed

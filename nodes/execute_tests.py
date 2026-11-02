@@ -1,14 +1,14 @@
 """
-NOD: execute_tests (Faza 3, fără LLM)
+NODE: execute_tests (Phase 3, no LLM)
 
-Rulează pytest pe codul curent și actualizează statisticile folosite de router
-ca să decidă dacă mai încercăm sau ne oprim:
+Runs pytest on the current code and updates the statistics the router uses
+to decide whether we keep trying or stop:
 
-  - failing_streaks: de câte ori la rând a picat FIECARE test. Dacă un test
-    pică de `max_same_test_failures` ori consecutiv, agentul e "blocat" pe el.
-  - failed_runs: câte rulări au eșuat în total (limita globală).
-  - last_passing_code: ultima versiune verde, ca să nu pierdem cod bun dacă o
-    îmbunătățire cerută de critic strică ceva.
+  - failing_streaks: how many times in a row EACH test failed. If a test fails
+    `max_same_test_failures` times consecutively, the agent is "stuck" on it.
+  - failed_runs: how many runs failed in total (the global limit).
+  - last_passing_code: the last green version, so we don't lose good code if
+    an improvement requested by the critic breaks something.
 """
 
 from config import SETTINGS
@@ -18,7 +18,7 @@ from utils.sandbox import run_tests
 
 
 def node_execute_tests(state: AgentState) -> dict:
-    """Rulează testele și actualizează starea cu rezultatele."""
+    """Runs the tests and updates the state with the results."""
     result = run_tests(state["code"], state["test_code"], SETTINGS.test_timeout_seconds)
 
     update = {
@@ -26,7 +26,7 @@ def node_execute_tests(state: AgentState) -> dict:
         "execution_output": result.output,
         "failing_tests": result.failed_tests,
         "failing_streaks": update_streaks(state["failing_streaks"], result.failed_tests),
-        # Diagnosticul ține de rularea anterioară; diagnose_failure îl recalculează la nevoie.
+        # The diagnosis belongs to the previous run; diagnose_failure recomputes it when needed.
         "failure_diagnosis": "",
         "suspect_tests": [],
         "test_fix_approved": False,
@@ -45,10 +45,10 @@ def node_execute_tests(state: AgentState) -> dict:
 
 
 def update_streaks(previous: dict[str, int], failed_now: list[str]) -> dict[str, int]:
-    """Noua serie de eșecuri consecutive pentru fiecare test.
+    """The new consecutive-failure streak for each test.
 
-    Testele care NU mai pică dispar din dicționar (seria lor s-a întrerupt).
-    Exemplu: previous={"test_a": 2, "test_b": 1}, failed_now=["test_a"]
+    Tests that NO LONGER fail disappear from the dict (their streak was broken).
+    Example: previous={"test_a": 2, "test_b": 1}, failed_now=["test_a"]
              -> {"test_a": 3}
     """
     return {test: previous.get(test, 0) + 1 for test in failed_now}

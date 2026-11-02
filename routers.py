@@ -1,8 +1,8 @@
 """
-Routerele = muchiile condiționate ale grafului.
+Routers = the graph's conditional edges.
 
-Un router primește starea și întoarce NUMELE nodului următor. Routerele doar
-CITESC starea (nu o modifică); toate contoarele sunt actualizate în noduri.
+A router receives the state and returns the NAME of the next node. Routers only
+READ the state (they don't modify it); all counters are updated inside the nodes.
 """
 
 from config import SETTINGS
@@ -10,29 +10,29 @@ from node_names import Node
 from state import AgentState
 from utils.sandbox import CODE_LEVEL_ERRORS
 
-# ---------------------------------------------------------------- Faza 1
+# ---------------------------------------------------------------- Phase 1
 
 
 def route_after_confirm(state: AgentState) -> Node:
-    """Utilizatorul a confirmat -> teste; altfel -> reformulăm cu precizările lui."""
+    """User confirmed -> tests; otherwise -> rephrase using the user's clarifications."""
     return Node.GENERATE_TESTS if state["user_confirmed_task"] else Node.CLARIFY_TASK
 
 
-# ---------------------------------------------------------------- Faza 2
+# ---------------------------------------------------------------- Phase 2
 
 
 def route_after_generate_tests(state: AgentState) -> Node:
-    """Prima generare -> întrebăm de corner cases; regenerările -> direct la critic."""
+    """First generation -> ask for corner cases; regenerations -> straight to the critic."""
     return Node.JUDGE_TESTS if state["corner_cases_asked"] else Node.ASK_CORNER_CASES
 
 
 def route_after_corner_cases(state: AgentState) -> Node:
-    """Utilizatorul a dat idei -> le adăugăm în teste; altfel -> criticul de teste."""
+    """The user gave ideas -> add them to the tests; otherwise -> the test critic."""
     return Node.GENERATE_TESTS if state["user_corner_cases"] else Node.JUDGE_TESTS
 
 
 def route_after_test_judge(state: AgentState) -> Node:
-    """Aprobat -> implementare; respins de prea multe ori -> utilizatorul; altfel -> regenerare."""
+    """Approved -> implementation; rejected too many times -> the user; otherwise -> regenerate."""
     if state["test_judge_passed"]:
         return Node.IMPLEMENT_CODE
     if state["test_judge_iterations"] >= SETTINGS.max_test_judge_iterations:
@@ -41,16 +41,16 @@ def route_after_test_judge(state: AgentState) -> Node:
 
 
 def route_after_manual_tests(state: AgentState) -> Node:
-    """Testele lipite au erori de sintaxă -> mai întrebăm o dată; altfel -> implementare."""
+    """The pasted tests have syntax errors -> ask again; otherwise -> implementation."""
     return Node.USER_MANUAL_TESTS if state["manual_tests_error"] else Node.IMPLEMENT_CODE
 
 
-# ---------------------------------------------------------------- Faza 3
+# ---------------------------------------------------------------- Phase 3
 
 
 def route_after_execution(state: AgentState) -> Node:
-    """Teste verzi -> criticul de cod; agent blocat -> raport (oprire);
-    altfel -> diagnostic (cine e de vină?) sau direct reparare."""
+    """Green tests -> the code critic; agent stuck -> report (stop);
+    otherwise -> diagnosis (who is at fault?) or a direct fix."""
     if state["execution_passed"]:
         return Node.JUDGE_CODE
     if is_stuck(state):
@@ -61,9 +61,9 @@ def route_after_execution(state: AgentState) -> Node:
 
 
 def can_diagnose(state: AgentState) -> bool:
-    """Are sens să întrebăm "e de vină testul?" doar dacă:
-    - au picat teste REALE (nu o eroare de import / timeout, care țin sigur de cod), și
-    - nu am epuizat numărul de corectări ale testelor.
+    """Asking "is the test at fault?" only makes sense if:
+    - REAL tests failed (not an import error / timeout, which are always the code's fault), and
+    - we haven't used up the allowed number of test corrections.
     """
     only_real_failures = not CODE_LEVEL_ERRORS.intersection(state["failing_tests"])
     repairs_left = state["test_repairs"] < SETTINGS.max_test_repairs
@@ -71,9 +71,9 @@ def can_diagnose(state: AgentState) -> bool:
 
 
 def is_stuck(state: AgentState) -> bool:
-    """Agentul e "blocat" dacă:
-    - a depășit numărul total de rulări picate, SAU
-    - același test a picat de prea multe ori la rând (nu reușește să-l repare).
+    """The agent is "stuck" if:
+    - it exceeded the total number of failed runs, OR
+    - the same test failed too many times in a row (it can't manage to fix it).
     """
     too_many_failures = state["failed_runs"] >= SETTINGS.max_fix_attempts
     worst_streak = max(state["failing_streaks"].values(), default=0)
@@ -81,20 +81,20 @@ def is_stuck(state: AgentState) -> bool:
 
 
 def route_after_diagnosis(state: AgentState) -> Node:
-    """Teste suspectate ca greșite -> întrebăm utilizatorul; altfel -> reparăm codul."""
+    """Tests suspected to be wrong -> ask the user; otherwise -> fix the code."""
     return Node.CONFIRM_TEST_FIX if state["suspect_tests"] else Node.IMPLEMENT_CODE
 
 
 def route_after_test_fix_confirm(state: AgentState) -> Node:
-    """Utilizatorul a aprobat -> corectăm testele; altfel -> reparăm codul."""
+    """The user approved -> correct the tests; otherwise -> fix the code."""
     return Node.REPAIR_TESTS if state["test_fix_approved"] else Node.IMPLEMENT_CODE
 
 
 def route_after_code_judge(state: AgentState) -> Node:
-    """Aprobat sau epuizat rundele de îmbunătățire -> raport; altfel -> îmbunătățire."""
+    """Approved or out of improvement rounds -> report; otherwise -> improve."""
     if state["code_judge_passed"]:
         return Node.FINAL_REPORT
-    # `refine_iterations` = a câta cerere de îmbunătățire e aceasta (vezi judge_code).
+    # `refine_iterations` = which improvement request this is (see judge_code).
     if state["refine_iterations"] > SETTINGS.max_refine_iterations:
         return Node.FINAL_REPORT
     return Node.IMPLEMENT_CODE

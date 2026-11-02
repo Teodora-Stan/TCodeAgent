@@ -1,11 +1,11 @@
 """
-NOD: judge_tests (Faza 2, LLM-as-a-judge)
+NODE: judge_tests (Phase 2, LLM-as-a-judge)
 
-Un "critic" evaluează suita de teste ÎNAINTE de implementare: acoperă cerința?
-Lipsesc cazuri limită? Sunt valori așteptate greșite?
+A "critic" evaluates the test suite BEFORE the implementation: does it cover the
+request? Are corner cases missing? Are there wrong expected values?
 
-Dacă respinge, feedback-ul lui ajunge în prompt-ul lui generate_tests. După
-`max_test_judge_iterations` respingeri, utilizatorul e rugat să intervină manual.
+If it rejects the suite, its feedback goes into generate_tests' prompt. After
+`max_test_judge_iterations` rejections, the user is asked to step in manually.
 """
 
 from config import SETTINGS
@@ -27,7 +27,7 @@ nu respinge pentru detalii minore de stil. Răspunde în limba română."""
 
 
 def node_judge_tests(state: AgentState) -> dict:
-    """Evaluează suita de teste și decide dacă e aprobată."""
+    """Evaluates the test suite and decides whether it's approved."""
     review = ask_structured(TestReview, SYSTEM_PROMPT, build_prompt(state))
     iteration = state["test_judge_iterations"] + 1
     verdict = "APROBAT" if review.approved else "RESPINS"
@@ -44,7 +44,7 @@ def node_judge_tests(state: AgentState) -> dict:
 
 
 def build_prompt(state: AgentState) -> str:
-    """Contextul task-ului + suita de evaluat."""
+    """The task context + the suite to evaluate."""
     return join_sections(
         task_context(state),
         section("Suita de teste de evaluat", code_block(state["test_code"])),
@@ -52,7 +52,7 @@ def build_prompt(state: AgentState) -> str:
 
 
 def format_review(review: TestReview) -> str:
-    """Feedback-ul criticului ca text (citit atât de LLM, cât și de utilizator)."""
+    """The critic's feedback as text (read by both the LLM and the user)."""
     return join_sections(
         section("Cazuri lipsă", bullet_list(review.missing_cases)),
         section("Probleme în testele existente", bullet_list(review.problems)),

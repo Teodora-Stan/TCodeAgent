@@ -1,15 +1,15 @@
 """
-Configurația agentului (modelul LLM + limitele buclelor).
+Agent configuration (the LLM model + the loop limits).
 
-Toate valorile pot fi suprascrise din variabile de mediu (sau dintr-un fișier
-`.env`), ca să nu modifici codul când vrei să experimentezi cu alte limite.
+Every value can be overridden from environment variables (or from a `.env`
+file), so you don't have to change the code to experiment with other limits.
 """
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-# python-dotenv e opțional: dacă e instalat, citim `.env` din directorul curent.
+# python-dotenv is optional: if it's installed, we read `.env` from the current directory.
 try:
     from dotenv import load_dotenv
 
@@ -19,43 +19,43 @@ except ImportError:
 
 
 def _env_int(name: str, default: int) -> int:
-    """Citește un întreg din mediu; dacă variabila lipsește, întoarce `default`."""
+    """Reads an integer from the environment; returns `default` if the variable is missing."""
     return int(os.getenv(name, default))
 
 
 def _env_list(name: str, default: str) -> tuple[str, ...]:
-    """Citește o listă separată prin virgulă (ex: "a,b,c" -> ("a", "b", "c"))."""
+    """Reads a comma-separated list (e.g. "a,b,c" -> ("a", "b", "c"))."""
     return tuple(item.strip() for item in os.getenv(name, default).split(",") if item.strip())
 
 
 @dataclass(frozen=True)
 class Settings:
-    """Setările agentului. `frozen=True` => nu pot fi modificate accidental la rulare."""
+    """The agent's settings. `frozen=True` => they can't be changed by accident at runtime."""
 
     # --- LLM ---
-    model: str                      # modelul principal pe Groq
-    fallback_models: tuple[str, ...]  # modele de rezervă când cel principal își termină cota zilnică
-    reasoning_effort: str           # "low" / "medium" / "high" pentru modelele gpt-oss (mai mic = mai puțini tokeni)
-    temperature: float              # temperatura pentru generare (cod / teste)
-    judge_temperature: float        # temperatura pentru critici (mai mică = mai consecvent)
+    model: str                      # the main model on Groq
+    fallback_models: tuple[str, ...]  # fallback models for when the main one runs out of daily quota
+    reasoning_effort: str           # "low" / "medium" / "high" for gpt-oss models (lower = fewer tokens)
+    temperature: float              # temperature for generation (code / tests)
+    judge_temperature: float        # temperature for the critics (lower = more consistent)
 
-    # --- Faza de teste ---
-    max_test_judge_iterations: int  # de câte ori poate respinge criticul testele
+    # --- Test phase ---
+    max_test_judge_iterations: int  # how many times the critic may reject the tests
 
-    # --- Faza de cod ---
-    max_fix_attempts: int           # câte rulări picate de teste tolerăm în total
-    max_same_test_failures: int     # de câte ori la rând poate pica ACELAȘI test
-    max_refine_iterations: int      # câte runde de îmbunătățiri cerute de criticul de cod
-    max_test_repairs: int           # de câte ori pot fi corectate testele suspectate ca greșite
+    # --- Code phase ---
+    max_fix_attempts: int           # how many failed test runs we tolerate in total
+    max_same_test_failures: int     # how many times in a row the SAME test may fail
+    max_refine_iterations: int      # how many improvement rounds the code critic may request
+    max_test_repairs: int           # how many times tests suspected to be wrong may be corrected
 
-    # --- Execuție ---
-    test_timeout_seconds: int       # timeout pentru pytest (protecție la bucle infinite)
-    output_dir: Path                # unde salvăm codul, testele și raportul final
-    checkpoint_db: Path             # baza SQLite cu starea salvată după fiecare nod (pentru reluare)
+    # --- Execution ---
+    test_timeout_seconds: int       # pytest timeout (protection against infinite loops)
+    output_dir: Path                # where we save the code, the tests and the final report
+    checkpoint_db: Path             # SQLite database with the state saved after each node (for resuming)
 
 
 def load_settings() -> Settings:
-    """Construiește obiectul `Settings` din variabilele de mediu (cu valori implicite)."""
+    """Builds the `Settings` object from environment variables (with defaults)."""
     return Settings(
         model=os.getenv("LLM_MODEL", "openai/gpt-oss-120b"),
         fallback_models=_env_list("LLM_FALLBACK_MODELS", "openai/gpt-oss-20b,qwen/qwen3.8-27b"),
@@ -73,5 +73,5 @@ def load_settings() -> Settings:
     )
 
 
-# Instanța globală folosită de restul modulelor: `from config import SETTINGS`.
+# The global instance used by the other modules: `from config import SETTINGS`.
 SETTINGS = load_settings()

@@ -1,25 +1,25 @@
 """
-NOD: confirm_test_fix (Faza 3b, Human-in-the-Loop)
+NODE: confirm_test_fix (Phase 3b, Human-in-the-Loop)
 
-LLM-ul crede că unele teste sunt greșite. Nu le modificăm fără acordul
-utilizatorului (altfel agentul ar putea "trișa" schimbând testele ca să treacă).
+The LLM believes some tests are wrong. We don't change them without the user's
+consent (otherwise the agent could "cheat" by changing the tests so they pass).
 
-  - "da" / Enter      -> corectăm testele (repair_tests)
-  - "nu"              -> testele sunt corecte, reparăm codul (implement_code)
-  - alt text          -> corectăm testele, folosind textul ca indicații
+  - "da" / Enter      -> correct the tests (repair_tests)
+  - "nu"              -> the tests are correct, fix the code (implement_code)
+  - other text        -> correct the tests, using the text as guidance
 """
 
 from state import AgentState
 from utils.text import bullet_list, is_affirmative, is_negative
 from utils.user_io import ask_user
 
-# Adăugat la diagnostic când utilizatorul respinge corectarea, ca implement_code
-# să știe că testele sunt corecte și să nu mai "lupte" cu ele.
+# Appended to the diagnosis when the user rejects the correction, so implement_code
+# knows the tests are correct and stops "fighting" them.
 TESTS_CONFIRMED_NOTE = "\n\nUtilizatorul a confirmat că testele sunt CORECTE: repară codul."
 
 
 def node_confirm_test_fix(state: AgentState) -> dict:
-    """Întreabă utilizatorul dacă testele suspectate trebuie corectate."""
+    """Asks the user whether the suspected tests should be corrected."""
     answer = ask_user(
         title="Test posibil greșit",
         message="Cred că aceste teste au valori așteptate greșite:\n" + bullet_list(state["suspect_tests"]),
@@ -29,7 +29,7 @@ def node_confirm_test_fix(state: AgentState) -> dict:
         ),
     )
 
-    # Ordinea contează: Enter gol e în ambele mulțimi, iar aici îl vrem ca "da".
+    # Order matters: an empty Enter is in both sets, and here we want it to mean "da".
     if is_affirmative(answer):
         return {"test_fix_approved": True, "test_fix_guidance": ""}
 
@@ -40,5 +40,5 @@ def node_confirm_test_fix(state: AgentState) -> dict:
             "history": ["Utilizatorul a confirmat că testele sunt corecte."],
         }
 
-    # Text liber (ex: "luna 90 e invalidă, deci False") -> indicație pentru reparare.
+    # Free text (e.g. "luna 90 e invalidă, deci False") -> guidance for the correction.
     return {"test_fix_approved": True, "test_fix_guidance": answer}

@@ -1,9 +1,9 @@
 """
-NOD: repair_tests (Faza 3b)
+NODE: repair_tests (Phase 3b)
 
-Corectează DOAR testele aprobate de utilizator, apoi graful rulează din nou
-testele pe ACELAȘI cod (muchie fixă repair_tests -> execute_tests). Dacă
-diagnosticul a fost corect, testul reparat trece fără să atingem codul.
+Corrects ONLY the tests approved by the user, then the graph re-runs the tests
+against the SAME code (fixed edge repair_tests -> execute_tests). If the
+diagnosis was right, the repaired test passes without touching the code.
 """
 
 from llm import ask_code
@@ -21,12 +21,12 @@ Răspunde DOAR cu fișierul complet de teste, într-un singur bloc ```python```.
 
 
 def node_repair_tests(state: AgentState) -> dict:
-    """Rescrie testele suspectate și păstrează restul suitei."""
+    """Rewrites the suspected tests and keeps the rest of the suite."""
     repaired = ask_code(SYSTEM_PROMPT, build_prompt(state))
     repairs = state["test_repairs"] + 1
 
-    # Dacă LLM-ul a produs un fișier invalid, păstrăm testele vechi:
-    # mai bine reparăm codul decât să rulăm o suită care nici nu se importă.
+    # If the LLM produced an invalid file, we keep the old tests:
+    # better to fix the code than to run a suite that won't even import.
     error = syntax_error(repaired)
     if error:
         return {
@@ -37,7 +37,7 @@ def node_repair_tests(state: AgentState) -> dict:
     return {
         "test_code": repaired,
         "test_repairs": repairs,
-        # Rularea anterioară a picat din cauza testelor, nu a codului -> nu o numărăm.
+        # The previous run failed because of the tests, not the code -> we don't count it.
         "failed_runs": max(0, state["failed_runs"] - 1),
         "failing_streaks": {},
         "history": log_step(f"Am corectat {len(state['suspect_tests'])} teste; rulez din nou."),
@@ -45,7 +45,7 @@ def node_repair_tests(state: AgentState) -> dict:
 
 
 def build_prompt(state: AgentState) -> str:
-    """Cerința + suita curentă + ce trebuie corectat (+ indicațiile utilizatorului)."""
+    """The request + the current suite + what needs correcting (+ the user's guidance)."""
     return join_sections(
         task_context(state),
         section(f"Suita curentă ({TEST_FILE})", code_block(state["test_code"])),

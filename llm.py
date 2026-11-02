@@ -1,12 +1,12 @@
 """
-Stratul de acces la LLM: TOATE apelurile către model trec prin funcțiile de aici.
+The LLM access layer: ALL calls to the model go through the functions here.
 
-Avantaj: nodurile nu știu nimic despre Groq / LangChain. Dacă vrei alt provider
-(OpenAI, Ollama...), schimbi doar `get_llm()`.
+Benefit: the nodes know nothing about Groq / LangChain. If you want another
+provider (OpenAI, Ollama...), you only change `get_llm()`.
 
-Modele de rezervă: pe planul gratuit Groq, fiecare model are o cotă ZILNICĂ de
-tokeni. Când modelul principal o epuizează, trecem automat la următorul din
-`SETTINGS.fallback_models` și nu-l mai încercăm pe cel epuizat până la final.
+Fallback models: on Groq's free plan, every model has a DAILY token quota.
+When the main model runs out, we automatically switch to the next one in
+`SETTINGS.fallback_models` and don't try the exhausted one again until the end.
 """
 
 import os
@@ -21,30 +21,30 @@ from pydantic import BaseModel
 from config import SETTINGS
 from utils.text import extract_code_block, strip_reasoning
 
-# `T` = "orice subclasă de BaseModel". Așa `ask_structured(TestReview, ...)`
-# întoarce, pentru type checker, exact un `TestReview`.
+# `T` = "any subclass of BaseModel". This way `ask_structured(TestReview, ...)`
+# returns exactly a `TestReview` as far as the type checker is concerned.
 T = TypeVar("T", bound=BaseModel)
 
-# Modelele care și-au epuizat cota zilnică în rularea curentă.
+# The models that ran out of daily quota during the current run.
 _exhausted_models: set[str] = set()
 
 
 class AllModelsExhaustedError(RuntimeError):
-    """Toate modelele (principal + rezervă) și-au epuizat cota zilnică."""
+    """All models (main + fallbacks) have run out of daily quota."""
 
 
-# ---------------------------------------------------------------- Clienți
+# ---------------------------------------------------------------- Clients
 
 
 @lru_cache(maxsize=None)
 def get_llm(model: str, temperature: float) -> ChatGroq:
-    """Creează (o singură dată per model + temperatură, datorită cache-ului) clientul LLM.
+    """Creates the LLM client (only once per model + temperature, thanks to the cache).
 
-    Cheia API e citită automat de ChatGroq din variabila de mediu GROQ_API_KEY.
-    `max_retries` reîncearcă automat la erori de rețea / limite PE MINUT (429).
+    ChatGroq reads the API key automatically from the GROQ_API_KEY environment variable.
+    `max_retries` automatically retries on network errors / PER-MINUTE limits (429).
     """
-    # Fără cheie, Groq trimite header-ul "Bearer " gol și eșuează cu un
-    # "Connection error" greu de înțeles -> verificăm noi înainte.
+    # Without a key, Groq sends an empty "Bearer " header and fails with a
+    # hard-to-understand "Connection error" -> we check it ourselves first.
     if not os.getenv("GROQ_API_KEY", "").strip():
         raise RuntimeError(
             "GROQ_API_KEY lipsește sau e goală. Completează-o în fișierul .env "
@@ -54,16 +54,16 @@ def get_llm(model: str, temperature: float) -> ChatGroq:
         model=model,
         temperature=temperature,
         max_retries=3,
-        timeout=120,  # un singur request nu poate bloca agentul mai mult de 2 minute
+        timeout=120,  # a single request can't block the agent for more than 2 minutes
         **model_specific_options(model),
     )
 
 
 def model_specific_options(model: str) -> dict:
-    """Opțiuni valabile doar pentru unele modele.
+    """Options that only apply to some models.
 
-    Modelele gpt-oss "gândesc" înainte să răspundă, iar tokenii de gândire se
-    numără la cotă. `reasoning_effort="low"` îi reduce considerabil.
+    gpt-oss models "think" before answering, and the thinking tokens count
+    towards the quota. `reasoning_effort="low"` reduces them considerably.
     """
     if model.startswith("openai/gpt-oss"):
         return {"reasoning_effort": SETTINGS.reasoning_effort}
@@ -71,28 +71,28 @@ def model_specific_options(model: str) -> dict:
 
 
 def candidate_models() -> list[str]:
-    """Modelele de încercat, în ordine: principalul, apoi rezervele neepuizate."""
+    """The models to try, in order: the main one, then the non-exhausted fallbacks."""
     models = [SETTINGS.model, *SETTINGS.fallback_models]
     return [m for m in models if m not in _exhausted_models]
 
 
 def is_daily_limit(error: RateLimitError) -> bool:
-    """True dacă eroarea 429 e pentru cota ZILNICĂ (tokens/requests per day).
+    """True if the 429 error is about the DAILY quota (tokens/requests per day).
 
-    Limitele pe minut trec singure (clientul așteaptă și reîncearcă); cele pe zi
-    nu, deci doar atunci are sens să schimbăm modelul.
+    Per-minute limits go away on their own (the client waits and retries); daily
+    ones don't, so that's the only case where switching models makes sense.
     """
     message = str(error)
     return "(TPD)" in message or "(RPD)" in message or "per day" in message
 
 
-# ---------------------------------------------------------------- Apel cu rezervă
+# ---------------------------------------------------------------- Call with fallback
 
 
 def invoke_with_fallback(messages: list[BaseMessage], temperature: float, schema: type[T] | None = None):
-    """Trimite mesajele la primul model disponibil; la cotă zilnică epuizată, trece la următorul.
+    """Sends the messages to the first available model; on an exhausted daily quota, moves to the next.
 
-    `schema=None` -> întoarce mesajul brut; altfel -> obiectul Pydantic validat.
+    `schema=None` -> returns the raw message; otherwise -> the validated Pydantic object.
     """
     for model in candidate_models():
         llm = get_llm(model, temperature)
@@ -113,34 +113,34 @@ def invoke_with_fallback(messages: list[BaseMessage], temperature: float, schema
 
 
 def _messages(system: str, user: str) -> list[BaseMessage]:
-    """Construiește conversația standard: instrucțiuni (system) + cererea (user).
+    """Builds the standard conversation: instructions (system) + the request (user).
 
-    Afișează și un indicator, ca să se vadă că agentul așteaptă LLM-ul (nu e blocat).
+    Also prints an indicator, so it's visible that the agent is waiting for the LLM (not stuck).
     """
     print("  ⋯ aștept răspunsul LLM...", flush=True)
     return [SystemMessage(content=system), HumanMessage(content=user)]
 
 
-# ---------------------------------------------------------------- API folosit de noduri
+# ---------------------------------------------------------------- API used by the nodes
 
 
 def ask_text(system: str, user: str, temperature: float = SETTINGS.temperature) -> str:
-    """Apel LLM care întoarce text liber (ex: raportul final în markdown)."""
+    """LLM call that returns free text (e.g. the final report in markdown)."""
     response = invoke_with_fallback(_messages(system, user), temperature)
     return strip_reasoning(str(response.content))
 
 
 def ask_code(system: str, user: str, temperature: float = SETTINGS.temperature) -> str:
-    """Apel LLM care întoarce DOAR codul Python din primul bloc ```python```."""
+    """LLM call that returns ONLY the Python code from the first ```python``` block."""
     return extract_code_block(ask_text(system, user, temperature))
 
 
 def ask_structured(
     schema: type[T], system: str, user: str, temperature: float = SETTINGS.judge_temperature
 ) -> T:
-    """Apel LLM care întoarce un obiect Pydantic validat (ex: `TestReview`).
+    """LLM call that returns a validated Pydantic object (e.g. `TestReview`).
 
-    `with_structured_output` trimite schema ca "tool" modelului și parsează
-    răspunsul; dacă JSON-ul nu respectă schema, aruncă o excepție.
+    `with_structured_output` sends the schema to the model as a "tool" and parses
+    the response; if the JSON doesn't match the schema, it raises an exception.
     """
     return invoke_with_fallback(_messages(system, user), temperature, schema)

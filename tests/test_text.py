@@ -1,4 +1,4 @@
-"""Teste pentru utils/text.py (funcții pure, fără LLM)."""
+"""Tests for utils/text.py (pure functions, no LLM)."""
 
 import pytest
 

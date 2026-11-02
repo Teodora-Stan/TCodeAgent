@@ -1,38 +1,38 @@
 """
-Construirea grafului LangGraph: noduri + muchii.
+Building the LangGraph graph: nodes + edges.
 
-Diagrama fluxului:
+Flow diagram:
 
     START
       │
       ▼
-    clarify_task ──► user_confirm ──(nu e ok)──► clarify_task
+    clarify_task ──► user_confirm ──(not ok)──► clarify_task
                           │ ok
                           ▼
-    generate_tests ──(prima dată)──► ask_corner_cases ──(are idei)──► generate_tests
-          │ (regenerare)                    │ (nimic)
+    generate_tests ──(first time)──► ask_corner_cases ──(has ideas)──► generate_tests
+          │ (regeneration)                  │ (nothing)
           ▼                                 ▼
     judge_tests ◄───────────────────────────┘
-          │ respins (< max)  ──► generate_tests
-          │ respins (= max)  ──► user_manual_tests ──► implement_code
-          │ aprobat
+          │ rejected (< max)  ──► generate_tests
+          │ rejected (= max)  ──► user_manual_tests ──► implement_code
+          │ approved
           ▼
-    implement_code ──► execute_tests ──(picat, blocat)──► final_report
+    implement_code ──► execute_tests ──(failed, stuck)──► final_report
           ▲                  │   │
-          │                  │   └─(picat, eroare de import / timeout)──► implement_code
-          │                  │ picat (teste reale)
+          │                  │   └─(failed, import error / timeout)──► implement_code
+          │                  │ failed (real tests)
           │                  ▼
-          │           diagnose_failure ──(vina e a codului)──► implement_code
-          │                  │ test suspectat ca greșit
+          │           diagnose_failure ──(the code is at fault)──► implement_code
+          │                  │ test suspected to be wrong
           │                  ▼
           │           confirm_test_fix ──(user: "nu")──► implement_code
           │                  │ user: "da"
           │                  ▼
-          │           repair_tests ──► execute_tests (același cod, teste corectate)
+          │           repair_tests ──► execute_tests (same code, corrected tests)
           │
-          │           execute_tests ──(verde)──► judge_code
-          └───(cere îmbunătățiri)──────────────────┘
-                                                   │ aprobat / limită atinsă
+          │           execute_tests ──(green)──► judge_code
+          └───(requests improvements)──────────────┘
+                                                   │ approved / limit reached
                                                    ▼
                                              final_report ──► END
 """
@@ -46,7 +46,7 @@ import routers
 from node_names import Node
 from state import AgentState
 
-# Asocierea nume nod -> funcție. Un dicționar e mai ușor de citit decât 10 apeluri add_node.
+# Node name -> function mapping. A dict is easier to read than 13 add_node calls.
 NODE_FUNCTIONS = {
     Node.CLARIFY_TASK: nodes.node_clarify_task,
     Node.USER_CONFIRM: nodes.node_user_confirm,
@@ -63,17 +63,17 @@ NODE_FUNCTIONS = {
     Node.FINAL_REPORT: nodes.node_final_report,
 }
 
-# Muchii fixe: după nodul din stânga urmează MEREU nodul din dreapta.
+# Fixed edges: the node on the left is ALWAYS followed by the node on the right.
 FIXED_EDGES = [
     (START, Node.CLARIFY_TASK),
     (Node.CLARIFY_TASK, Node.USER_CONFIRM),
     (Node.IMPLEMENT_CODE, Node.EXECUTE_TESTS),
-    (Node.REPAIR_TESTS, Node.EXECUTE_TESTS),  # testele corectate se rulează pe același cod
+    (Node.REPAIR_TESTS, Node.EXECUTE_TESTS),  # the corrected tests run against the same code
     (Node.FINAL_REPORT, END),
 ]
 
-# Muchii condiționate: după nodul din stânga, router-ul decide unde mergem.
-# Lista din dreapta = destinațiile posibile (LangGraph le folosește la validare și la desenare).
+# Conditional edges: after the node on the left, the router decides where to go.
+# The list on the right = the possible destinations (LangGraph uses them for validation and drawing).
 CONDITIONAL_EDGES = [
     (Node.USER_CONFIRM, routers.route_after_confirm, [Node.GENERATE_TESTS, Node.CLARIFY_TASK]),
     (Node.GENERATE_TESTS, routers.route_after_generate_tests, [Node.ASK_CORNER_CASES, Node.JUDGE_TESTS]),
@@ -96,12 +96,12 @@ CONDITIONAL_EDGES = [
 
 
 def build_graph(checkpointer: BaseCheckpointSaver | None = None):
-    """Construiește și compilează graful.
+    """Builds and compiles the graph.
 
-    Checkpointer-ul e OBLIGATORIU pentru `interrupt()`: acolo se salvează starea
-    cât timp graful așteaptă răspunsul utilizatorului. main.py îi dă unul pe
-    disc (SQLite, vezi persistence.py); fără argument se folosește unul în memorie
-    (util în teste).
+    The checkpointer is REQUIRED for `interrupt()`: that's where the state is saved
+    while the graph waits for the user's answer. main.py passes an on-disk one
+    (SQLite, see persistence.py); without an argument an in-memory one is used
+    (useful in tests).
     """
     builder = StateGraph(AgentState)
 

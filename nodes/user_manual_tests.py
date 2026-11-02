@@ -1,13 +1,13 @@
 """
-NOD: user_manual_tests (Faza 2, Human-in-the-Loop, fallback)
+NODE: user_manual_tests (Phase 2, Human-in-the-Loop, fallback)
 
-Ajungem aici când criticul de teste a respins suita de prea multe ori. Îi arătăm
-utilizatorului ce i-a lipsit criticului și îl lăsăm să lipească teste scrise de
-mână (care se ADAUGĂ la suita existentă).
+We get here when the test critic rejected the suite too many times. We show the
+user what the critic was missing and let them paste hand-written tests
+(which are APPENDED to the existing suite).
 
-  - răspuns gol         -> continuăm cu suita actuală
-  - cod valid           -> îl adăugăm și continuăm
-  - cod cu eroare       -> setăm `manual_tests_error`; router-ul ne trimite înapoi aici
+  - empty answer        -> continue with the current suite
+  - valid code          -> append it and continue
+  - code with an error  -> set `manual_tests_error`; the router sends us back here
 """
 
 from state import AgentState
@@ -16,7 +16,7 @@ from utils.user_io import ask_user
 
 
 def node_user_manual_tests(state: AgentState) -> dict:
-    """Permite utilizatorului să completeze manual suita de teste."""
+    """Lets the user extend the test suite manually."""
     answer = ask_user(
         title="Criticul de teste nu e încă mulțumit",
         message=build_message(state),
@@ -30,7 +30,7 @@ def node_user_manual_tests(state: AgentState) -> dict:
     if not answer:
         return {"manual_tests_error": None}
 
-    # Verificăm sintaxa pe suita COMBINATĂ: așa prindem și indentarea greșită.
+    # We check the syntax of the COMBINED suite: that way we also catch wrong indentation.
     combined = f"{state['test_code'].rstrip()}\n\n\n# --- Teste adăugate manual ---\n{answer}\n"
     error = syntax_error(combined)
     if error:
@@ -44,7 +44,7 @@ def node_user_manual_tests(state: AgentState) -> dict:
 
 
 def build_message(state: AgentState) -> str:
-    """Ce vede utilizatorul: eventuala eroare anterioară + feedback-ul criticului."""
+    """What the user sees: any previous error + the critic's feedback."""
     return join_sections(
         section("Eroare", state["manual_tests_error"]) if state["manual_tests_error"] else None,
         state["test_judge_feedback"],

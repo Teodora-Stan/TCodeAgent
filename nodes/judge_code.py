@@ -1,10 +1,10 @@
 """
-NOD: judge_code (Faza 3, LLM-as-a-judge)
+NODE: judge_code (Phase 3, LLM-as-a-judge)
 
-Rulează DOAR după ce toate testele au trecut. Criticul verifică ce testele nu
-pot verifica: lizibilitate, cod duplicat, complexitate inutilă, bug-uri pe
-cazuri netestate. Dacă cere modificări, ne întoarcem la implement_code (în
-modul REFINE), de cel mult `max_refine_iterations` ori.
+Runs ONLY after all tests have passed. The critic checks what the tests can't:
+readability, duplicated code, needless complexity, bugs on untested cases.
+If it asks for changes, we go back to implement_code (in REFINE mode), at most
+`max_refine_iterations` times.
 """
 
 from config import SETTINGS
@@ -24,7 +24,7 @@ Răspunde în limba română."""
 
 
 def node_judge_code(state: AgentState) -> dict:
-    """Evaluează calitatea codului care a trecut testele."""
+    """Evaluates the quality of the code that passed the tests."""
     review = ask_structured(CodeReview, SYSTEM_PROMPT, build_prompt(state))
 
     update = {
@@ -34,7 +34,7 @@ def node_judge_code(state: AgentState) -> dict:
     if review.approved:
         update["history"] = log_step("Criticul de cod: APROBAT.")
     else:
-        # Contorul crește doar la respingere = câte runde de îmbunătățire s-au cerut.
+        # The counter only grows on rejection = how many improvement rounds were requested.
         refine = state["refine_iterations"] + 1
         update["refine_iterations"] = refine
         update["history"] = log_step(
@@ -45,7 +45,7 @@ def node_judge_code(state: AgentState) -> dict:
 
 
 def build_prompt(state: AgentState) -> str:
-    """Contextul task-ului + testele + codul de evaluat."""
+    """The task context + the tests + the code to evaluate."""
     return join_sections(
         task_context(state),
         section(f"Testele ({TEST_FILE}) - toate trec", code_block(state["test_code"])),
@@ -54,7 +54,7 @@ def build_prompt(state: AgentState) -> str:
 
 
 def format_review(review: CodeReview) -> str:
-    """Feedback-ul criticului ca text (folosit în REFINE și în raportul final)."""
+    """The critic's feedback as text (used in REFINE and in the final report)."""
     return join_sections(
         section("Probleme care trebuie rezolvate", bullet_list(review.blocking_issues)),
         section("Sugestii opționale", bullet_list(review.suggestions)),

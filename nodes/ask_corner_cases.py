@@ -1,12 +1,12 @@
 """
-NOD: ask_corner_cases (Faza 2, Human-in-the-Loop)
+NODE: ask_corner_cases (Phase 2, Human-in-the-Loop)
 
-După prima generare a testelor, îi arătăm utilizatorului ce teste există și îl
-întrebăm dacă mai are idei de cazuri limită. Se întreabă O SINGURĂ DATĂ
-(flag-ul `corner_cases_asked`), nu la fiecare iterație a criticului.
+After the first test generation, we show the user which tests exist and ask
+whether they have more corner case ideas. We ask ONLY ONCE (the
+`corner_cases_asked` flag), not on every critic iteration.
 
-  - răspuns gol   -> mergem la criticul de teste
-  - răspuns text  -> ne întoarcem la generate_tests ca să le adauge
+  - empty answer  -> we go to the test critic
+  - text answer   -> we go back to generate_tests so it adds them
 """
 
 from state import AgentState
@@ -15,11 +15,11 @@ from utils.user_io import ask_user
 
 
 def node_ask_corner_cases(state: AgentState) -> dict:
-    """Cere utilizatorului corner cases suplimentare."""
+    """Asks the user for additional corner cases."""
     answer = ask_user(
         title="Corner cases",
         message="Teste generate:\n" + bullet_list(list_test_names(state["test_code"])),
         question="Mai ai cazuri limită pe care vrei să le testăm? (Enter = nu)",
     )
-    # "nu" / "nimic" / Enter -> "" (router-ul trece direct la criticul de teste).
+    # "nu" / "nimic" / Enter -> "" (the router goes straight to the test critic).
     return {"corner_cases_asked": True, "user_corner_cases": "" if is_negative(answer) else answer}

@@ -1,4 +1,4 @@
-"""Teste pentru logica din noduri care NU depinde de LLM."""
+"""Tests for the node logic that does NOT depend on the LLM."""
 
 from nodes.execute_tests import update_streaks
 from nodes.final_report import Outcome, detect_outcome

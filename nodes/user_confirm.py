@@ -1,12 +1,12 @@
 """
-NOD: user_confirm (Faza 1, Human-in-the-Loop)
+NODE: user_confirm (Phase 1, Human-in-the-Loop)
 
-Arată utilizatorului cum a înțeles agentul task-ul și așteaptă:
-  - "ok" / "da" / Enter      -> confirmat, trecem la teste
-  - orice alt text           -> e tratat ca precizare; ne întoarcem la clarify_task
+Shows the user how the agent understood the task and waits for:
+  - "ok" / "da" / Enter      -> confirmed, we move on to the tests
+  - any other text           -> treated as a clarification; we go back to clarify_task
 
-Nodul doar întreabă și salvează răspunsul (vezi explicația din utils/user_io.py
-despre de ce nu facem apeluri LLM într-un nod cu `interrupt()`).
+The node only asks and saves the answer (see the explanation in utils/user_io.py
+about why we don't make LLM calls in a node with `interrupt()`).
 """
 
 from state import AgentState
@@ -15,7 +15,7 @@ from utils.user_io import ask_user
 
 
 def node_user_confirm(state: AgentState) -> dict:
-    """Cere confirmarea înțelegerii task-ului."""
+    """Asks for confirmation of how the task was understood."""
     answer = ask_user(
         title="Confirmare task",
         message=state["clarification"],
@@ -25,5 +25,5 @@ def node_user_confirm(state: AgentState) -> dict:
     if is_affirmative(answer):
         return {"user_confirmed_task": True}
 
-    # Precizarea se ADAUGĂ la istoric (reducer operator.add), nu suprascrie.
+    # The clarification is APPENDED to the history (operator.add reducer), not overwritten.
     return {"user_confirmed_task": False, "clarification_history": [answer]}

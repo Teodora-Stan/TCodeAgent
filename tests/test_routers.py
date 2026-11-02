@@ -1,8 +1,8 @@
 """
-Teste pentru routers.py: deciziile de rutare pentru fiecare ramură a grafului.
+Tests for routers.py: the routing decisions for every branch of the graph.
 
-Limitele sunt citite din SETTINGS (nu scrise de mână), ca testele să rămână
-corecte și dacă le schimbi din .env.
+The limits are read from SETTINGS (not hard-coded), so the tests stay
+correct even if you change them in .env.
 """
 
 import routers
@@ -11,7 +11,7 @@ from node_names import Node
 from utils.sandbox import COLLECTION_ERROR
 
 
-# ---------------------------------------------------------------- Faza 1-2
+# ---------------------------------------------------------------- Phases 1-2
 
 
 def test_confirm_routes(make_state):
@@ -45,7 +45,7 @@ def test_manual_tests_with_error_ask_again(make_state):
     assert routers.route_after_manual_tests(make_state(manual_tests_error=None)) == Node.IMPLEMENT_CODE
 
 
-# ---------------------------------------------------------------- Faza 3
+# ---------------------------------------------------------------- Phase 3
 
 
 def test_passing_execution_goes_to_code_judge(make_state):

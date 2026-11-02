@@ -1,1 +1,1 @@
-"""Funcții ajutătoare fără legătură directă cu graful (text, sandbox, interacțiune)."""
+"""Helper functions not directly tied to the graph (text, sandbox, user interaction)."""

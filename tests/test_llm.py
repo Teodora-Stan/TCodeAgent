@@ -1,4 +1,4 @@
-"""Teste pentru trecerea automată la modelele de rezervă din llm.py (fără apeluri reale)."""
+"""Tests for the automatic switch to fallback models in llm.py (no real calls)."""
 
 import httpx
 import pytest
@@ -9,7 +9,7 @@ from config import SETTINGS
 
 
 def rate_limit(message: str) -> RateLimitError:
-    """O eroare 429 falsă, cu mesajul dat."""
+    """A fake 429 error with the given message."""
     request = httpx.Request("POST", "https://api.groq.com")
     return RateLimitError(message, response=httpx.Response(429, request=request), body=None)
 
@@ -19,7 +19,7 @@ PER_MINUTE = rate_limit("Rate limit reached on tokens per minute (TPM)")
 
 
 class FakeModel:
-    """Model fals: aruncă eroarea dată sau întoarce numele lui."""
+    """Fake model: raises the given error or returns its own name."""
 
     def __init__(self, name: str, error: Exception | None, calls: list[str]):
         self.name, self.error, self.calls = name, error, calls
@@ -36,7 +36,7 @@ class FakeModel:
 
 @pytest.fixture
 def fake_models(monkeypatch):
-    """Înlocuiește get_llm; `errors` = {model: eroare} pentru modelele care trebuie să pice."""
+    """Replaces get_llm; `errors` = {model: error} for the models that should fail."""
     monkeypatch.setattr(llm, "_exhausted_models", set())
     errors: dict[str, Exception] = {}
     calls: list[str] = []
@@ -55,7 +55,7 @@ def test_daily_limit_falls_back_and_remembers(fake_models):
 
     assert llm.invoke_with_fallback([], 0.0) == first_fallback
     calls.clear()
-    # Al doilea apel nu mai încearcă modelul epuizat.
+    # The second call doesn't try the exhausted model again.
     assert llm.invoke_with_fallback([], 0.0) == first_fallback
     assert calls == [first_fallback]
 
